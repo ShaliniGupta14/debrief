@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -12,6 +13,12 @@ from app.routers.stats import router as stats_router
 settings = get_settings()
 
 app = FastAPI(title="Debrief API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_methods=["GET", "POST"],
+    allow_headers=["X-API-Key", "Content-Type"],
+)
 app.include_router(ingest_router)
 app.include_router(calls_router)
 app.include_router(stats_router)
