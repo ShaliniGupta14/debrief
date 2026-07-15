@@ -6,16 +6,17 @@ Create Date: 2026-07-15 00:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 revision: str = "f3a1c9d2e8b4"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -24,21 +25,34 @@ def upgrade() -> None:
     op.create_table(
         "projects",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
         ),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("api_key_hash", sa.String(), nullable=False),
         sa.Column("api_key_prefix", sa.String(length=12), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("api_key_hash", name="uq_projects_api_key_hash"),
     )
 
     op.create_table(
         "llm_calls",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
         ),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+        ),
         sa.Column("trace_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("client_call_id", sa.String(), nullable=True),
         sa.Column("model", sa.String(), nullable=False),
@@ -51,7 +65,9 @@ def upgrade() -> None:
         sa.Column("latency_ms", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(), nullable=False),
         sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "metadata", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
         sa.Column(
             "search_vector",
             postgresql.TSVECTOR(),
@@ -61,8 +77,12 @@ def upgrade() -> None:
             ),
             nullable=True,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.UniqueConstraint("project_id", "client_call_id", name="uq_llm_calls_project_client_call_id"),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.UniqueConstraint(
+            "project_id", "client_call_id", name="uq_llm_calls_project_client_call_id"
+        ),
     )
     op.create_index("ix_llm_calls_project_created", "llm_calls", ["project_id", "created_at"])
     op.create_index(
@@ -82,24 +102,41 @@ def upgrade() -> None:
     op.create_table(
         "eval_definitions",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
         ),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            nullable=False,
+        ),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("type", sa.String(), nullable=False),
-        sa.Column("config", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "config", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("calibration_report", postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("project_id", "name", name="uq_eval_definitions_project_name"),
     )
 
     op.create_table(
         "eval_results",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
         ),
-        sa.Column("call_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("llm_calls.id"), nullable=False),
+        sa.Column(
+            "call_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("llm_calls.id"), nullable=False
+        ),
         sa.Column(
             "eval_definition_id",
             postgresql.UUID(as_uuid=True),
@@ -109,23 +146,32 @@ def upgrade() -> None:
         sa.Column("score", sa.Numeric(5, 4), nullable=False),
         sa.Column("passed", sa.Boolean(), nullable=True),
         sa.Column("judge_rationale", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("call_id", "eval_definition_id", name="uq_eval_results_call_eval"),
     )
 
     op.create_table(
         "model_prices",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
         ),
         sa.Column("model", sa.String(), nullable=False),
         sa.Column("input_price_per_mtok", sa.Numeric(12, 6), nullable=False),
         sa.Column("output_price_per_mtok", sa.Numeric(12, 6), nullable=False),
         sa.Column("effective_date", sa.Date(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("model", "effective_date", name="uq_model_prices_model_effective_date"),
     )
-    op.create_index("ix_model_prices_model_effective_date", "model_prices", ["model", "effective_date"])
+    op.create_index(
+        "ix_model_prices_model_effective_date", "model_prices", ["model", "effective_date"]
+    )
 
 
 def downgrade() -> None:

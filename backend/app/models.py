@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -31,7 +32,10 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     api_key_hash: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -50,13 +54,20 @@ class LLMCall(Base):
             postgresql_ops={"metadata": "jsonb_path_ops"},
         ),
         Index("ix_llm_calls_search_vector_gin", "search_vector", postgresql_using="gin"),
-        UniqueConstraint("project_id", "client_call_id", name="uq_llm_calls_project_client_call_id"),
+        UniqueConstraint(
+            "project_id", "client_call_id", name="uq_llm_calls_project_client_call_id"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False
+    )
     trace_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     client_call_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
@@ -67,13 +78,18 @@ class LLMCall(Base):
 
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
-    cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+    # Nullable: an unrecognized `model` (no matching model_prices row) still gets
+    # logged rather than rejected — a flight recorder shouldn't refuse to record
+    # just because it can't price the call yet.
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
 
     status: Mapped[str] = mapped_column(String, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
     search_vector: Mapped[str | None] = mapped_column(
         TSVECTOR,
         Computed(
@@ -88,30 +104,44 @@ class LLMCall(Base):
 
 class EvalDefinition(Base):
     __tablename__ = "eval_definitions"
-    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_eval_definitions_project_name"),)
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_eval_definitions_project_name"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False)
-    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Populated by a one-off calibration run (judge x3 on a fixed sample), not per-call.
     # See DECISIONS.md: keeping this off eval_results avoids breaking its unique constraint.
-    calibration_report: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    calibration_report: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class EvalResult(Base):
     __tablename__ = "eval_results"
-    __table_args__ = (UniqueConstraint("call_id", "eval_definition_id", name="uq_eval_results_call_eval"),)
+    __table_args__ = (
+        UniqueConstraint("call_id", "eval_definition_id", name="uq_eval_results_call_eval"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
     )
-    call_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("llm_calls.id"), nullable=False)
+    call_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("llm_calls.id"), nullable=False
+    )
     eval_definition_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("eval_definitions.id"), nullable=False
     )
@@ -129,7 +159,10 @@ class ModelPrice(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
     )
     model: Mapped[str] = mapped_column(String, nullable=False)
     input_price_per_mtok: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
