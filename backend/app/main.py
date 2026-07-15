@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.db import engine
 from app.routers.calls import router as calls_router
+from app.routers.evals import router as evals_router
 from app.routers.ingest import router as ingest_router
 from app.routers.stats import router as stats_router
 
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(ingest_router)
 app.include_router(calls_router)
 app.include_router(stats_router)
+app.include_router(evals_router)
 
 
 @app.get("/healthz")

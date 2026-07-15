@@ -3,7 +3,19 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+EvalType = Literal["regex", "json_schema", "length", "contains", "llm_judge"]
+
+# Required config keys per eval type -- checked at creation time so a bad
+# definition fails fast with a 422, not silently at eval-run time in the worker.
+_REQUIRED_CONFIG_KEYS: dict[str, tuple[str, ...]] = {
+    "regex": ("pattern",),
+    "json_schema": ("schema",),
+    "length": (),  # validated separately: needs at least one of min/max
+    "contains": ("text",),
+    "llm_judge": ("rubric",),
+}
 
 
 class CallIn(BaseModel):
@@ -93,3 +105,33 @@ class StatsBucket(BaseModel):
 
 class StatsResponse(BaseModel):
     buckets: list[StatsBucket]
+
+
+class EvalDefinitionIn(BaseModel):
+    name: str
+    type: EvalType
+    config: dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = True
+
+    @model_validator(mode="after")
+    def _check_config_shape(self) -> "EvalDefinitionIn":
+        missing = [k for k in _REQUIRED_CONFIG_KEYS[self.type] if k not in self.config]
+        if missing:
+            raise ValueError(f"{self.type} config missing required key(s): {', '.join(missing)}")
+        if self.type == "length" and "min" not in self.config and "max" not in self.config:
+            raise ValueError("length config needs at least one of 'min' or 'max'")
+        return self
+
+
+class EvalDefinitionOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    type: str
+    config: dict[str, Any]
+    enabled: bool
+    calibration_report: dict[str, Any] | None
+    created_at: datetime
+
+
+class EvalDefinitionListResponse(BaseModel):
+    items: list[EvalDefinitionOut]
