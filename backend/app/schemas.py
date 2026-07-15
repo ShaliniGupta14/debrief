@@ -135,3 +135,8 @@ class EvalDefinitionOut(BaseModel):
 
 class EvalDefinitionListResponse(BaseModel):
     items: list[EvalDefinitionOut]
+
+
+class CalibrationRequest(BaseModel):
+    call_ids: list[uuid.UUID] | None = None
+    sample_size: int = Field(default=5, ge=1, le=20)
