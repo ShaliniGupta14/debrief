@@ -140,3 +140,35 @@ class EvalDefinitionListResponse(BaseModel):
 class CalibrationRequest(BaseModel):
     call_ids: list[uuid.UUID] | None = None
     sample_size: int = Field(default=5, ge=1, le=20)
+
+
+class EvalComparison(BaseModel):
+    eval_definition_id: uuid.UUID
+    eval_name: str
+    mean_score_a: float | None
+    mean_score_b: float | None
+    delta: float | None
+    ci_low: float | None
+    ci_high: float | None
+    n_calls_a: int
+    n_calls_b: int
+    regressed: bool
+
+
+class WorstRegressionOut(BaseModel):
+    eval_definition_id: uuid.UUID
+    eval_name: str
+    prompt: str
+    mean_score_a: float
+    mean_score_b: float
+    delta: float
+    n_calls_a: int
+    n_calls_b: int
+
+
+class CompareResponse(BaseModel):
+    version_a: str
+    version_b: str
+    evals: list[EvalComparison]
+    worst_regressions: list[WorstRegressionOut]
+    any_regression: bool
