@@ -29,3 +29,11 @@ The backend is async end-to-end (FastAPI + asyncpg). arq is asyncio-native, so w
 ## 2026-07-15 — model_prices priced at point-in-time, not "current price"
 
 Cost calc looks up `WHERE model = ? AND effective_date <= call.created_at ORDER BY effective_date DESC LIMIT 1`, not "the latest row for this model." If Anthropic changes pricing, historical calls should keep reflecting the price that was actually in effect when they ran, not get silently repriced.
+
+## 2026-07-15 — CORS caught by actually driving the browser, not by tests
+
+The pytest suite (25 tests, all passing) never caught that the API had no CORS middleware, because `httpx.ASGITransport` calls the app in-process and skips the browser-side preflight check entirely. Only running the real frontend against the real backend in a headless browser surfaced it. Lesson encoded here, not just fixed: an API with a separate frontend origin needs at least one browser-driven smoke check, because "all tests green" doesn't mean "a browser can talk to it."
+
+## 2026-07-15 — `NEXT_PUBLIC_*` is a build-time value, not a runtime one
+
+`NEXT_PUBLIC_API_URL` gets inlined into the client JS bundle at `next build`, not read from the environment when the container starts. Setting it under `docker-compose`'s `environment:` for the `web` service would silently do nothing — it has to be a Docker build `arg`, consumed in the Dockerfile's build stage before `pnpm build` runs. Same constraint will apply on Railway/Vercel at deploy time.
