@@ -102,3 +102,29 @@ async def test_ingest_rejects_missing_required_field(client, project):
     bad_call = {k: v for k, v in VALID_CALL.items() if k != "model"}
     response = await client.post("/v1/ingest", json=[bad_call], headers={"X-API-Key": raw_key})
     assert response.status_code == 422
+
+
+async def test_ingest_enqueues_an_eval_job_per_new_call(client, project, fake_arq_pool):
+    _, raw_key = project
+    response = await client.post(
+        "/v1/ingest",
+        json=[VALID_CALL, {**VALID_CALL, "client_call_id": "req-enqueue-2"}],
+        headers={"X-API-Key": raw_key},
+    )
+    body = response.json()
+    assert len(fake_arq_pool.enqueued) == 2
+    enqueued_ids = {args[0] for _fn, args in fake_arq_pool.enqueued}
+    assert enqueued_ids == {item["id"] for item in body["accepted"]}
+    assert all(fn == "run_evals_for_call" for fn, _args in fake_arq_pool.enqueued)
+
+
+async def test_ingest_does_not_reenqueue_on_idempotent_replay(client, project, fake_arq_pool):
+    _, raw_key = project
+    call = {**VALID_CALL, "client_call_id": "req-no-reenqueue"}
+    headers = {"X-API-Key": raw_key}
+
+    await client.post("/v1/ingest", json=[call], headers=headers)
+    assert len(fake_arq_pool.enqueued) == 1
+
+    await client.post("/v1/ingest", json=[call], headers=headers)
+    assert len(fake_arq_pool.enqueued) == 1  # unchanged -- the replay is a duplicate

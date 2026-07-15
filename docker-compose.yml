@@ -42,6 +42,20 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build: ./backend
+    command: sh -c "arq app.workers.worker.WorkerSettings"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://debrief:debrief@postgres:5432/debrief
+      DATABASE_URL_SYNC: postgresql+psycopg://debrief:debrief@postgres:5432/debrief
+      REDIS_URL: redis://redis:6379/0
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   web:
     build:
       context: ./frontend

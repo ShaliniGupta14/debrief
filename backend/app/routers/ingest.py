@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import get_current_project
 from app.models import LLMCall, Project
+from app.queue import get_arq_pool
 from app.schemas import CallIn, IngestResponse, IngestResultItem
 from app.services.pricing import compute_cost
 
@@ -62,6 +64,7 @@ async def ingest(
     payload: list[CallIn],
     project: Project = Depends(get_current_project),
     db: AsyncSession = Depends(get_db),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> IngestResponse:
     if not payload:
         raise HTTPException(status_code=422, detail="at least one call is required")
@@ -76,4 +79,11 @@ async def ingest(
         )
 
     await db.commit()
+
+    # Only enqueue for genuinely new rows -- an idempotent replay of an
+    # already-evaluated call shouldn't re-trigger (and re-cost) a judge call.
+    for result_item in results:
+        if not result_item.duplicate:
+            await arq_pool.enqueue_job("run_evals_for_call", str(result_item.id))
+
     return IngestResponse(accepted=results, count=len(results))
