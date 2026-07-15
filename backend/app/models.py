@@ -46,7 +46,9 @@ class Project(Base):
 class LLMCall(Base):
     __tablename__ = "llm_calls"
     __table_args__ = (
-        Index("ix_llm_calls_project_created", "project_id", "created_at"),
+        # Includes id as a tie-breaker so keyset pagination (ORDER BY created_at, id)
+        # is served by a pure backward index scan, not an index scan + extra sort.
+        Index("ix_llm_calls_project_created_id", "project_id", "created_at", "id"),
         Index(
             "ix_llm_calls_metadata_gin",
             "metadata",

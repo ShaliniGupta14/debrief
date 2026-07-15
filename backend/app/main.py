@@ -5,12 +5,14 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.db import engine
+from app.routers.calls import router as calls_router
 from app.routers.ingest import router as ingest_router
 
 settings = get_settings()
 
 app = FastAPI(title="Debrief API", version="0.1.0")
 app.include_router(ingest_router)
+app.include_router(calls_router)
 
 
 @app.get("/healthz")
