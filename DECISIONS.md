@@ -36,4 +36,12 @@ The pytest suite (25 tests, all passing) never caught that the API had no CORS m
 
 ## 2026-07-15 — `NEXT_PUBLIC_*` is a build-time value, not a runtime one
 
-`NEXT_PUBLIC_API_URL` gets inlined into the client JS bundle at `next build`, not read from the environment when the container starts. Setting it under `docker-compose`'s `environment:` for the `web` service would silently do nothing — it has to be a Docker build `arg`, consumed in the Dockerfile's build stage before `pnpm build` runs. Same constraint will apply on Railway/Vercel at deploy time.
+`NEXT_PUBLIC_API_URL` gets inlined into the client JS bundle at `next build`, not read from the environment when the container starts. Setting it under `docker-compose`'s `environment:` for the `web` service would silently do nothing — it has to be a Docker build `arg`, consumed in the Dockerfile's build stage before `pnpm build` runs. Confirmed on Vercel too: changing the env var alone did nothing until a fresh `vercel deploy --prod` rebuilt the bundle.
+
+## 2026-07-15 — CLI login isn't the same as deploy authorization
+
+`gh`/`railway`/`vercel` CLI login only authenticates *me* to each platform. Linking a service to a GitHub repo needs Railway's GitHub App to additionally have repo access — a separate consent step the CLI can't complete non-interactively (`railway add --repo` failed with "Unauthorized" despite `railway whoami` succeeding). Sidestepped it: `railway up ./backend --path-as-root --service api` uploads and builds the local directory directly, no GitHub App involved. Fine for a single-command deploy; would need the GitHub App step for autodeploy-on-push later.
+
+## 2026-07-15 — Deploying surfaced two Dockerfile bugs pytest and local dev couldn't
+
+Neither of these showed up until the actual `docker build` ran in CI: (1) `frontend/Dockerfile`'s deps layer copied only `package.json`+`pnpm-lock.yaml` for cache efficiency, silently excluding `pnpm-workspace.yaml` — the file holding the `unrs-resolver` build-script approval — so the container re-hit the exact `ERR_PNPM_IGNORED_BUILDS` block I'd already fixed locally, just invisibly. (2) The Dockerfile's generic multi-stage template assumed a `public/` directory that this project never had (favicon.ico lives under `app/` via the App Router convention instead). Both are "verified locally" gaps: `pnpm build` and `pnpm dev` never exercise a clean-room `COPY` the way a Docker build does. Installed `actionlint` for the workflow YAML itself after a duplicate-key edit slipped past `yaml.safe_load` (valid YAML, invalid GitHub Actions schema) and failed a whole run with zero jobs listed.
