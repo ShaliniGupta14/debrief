@@ -22,6 +22,7 @@ out/
 .env
 .env.local
 .env.*.local
+backend/scripts/.seeded_keys.json
 
 # OS
 .DS_Store
