@@ -79,3 +79,17 @@ class CallDetail(BaseModel):
     metadata: dict[str, Any]
     created_at: datetime
     eval_results: list[EvalResultOut]
+
+
+class StatsBucket(BaseModel):
+    bucket: datetime
+    group_key: str | None
+    volume: int
+    spend_usd: Decimal
+    latency_p50_ms: float
+    latency_p95_ms: float
+    latency_p99_ms: float
+
+
+class StatsResponse(BaseModel):
+    buckets: list[StatsBucket]
