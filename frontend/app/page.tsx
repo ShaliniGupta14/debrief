@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ApiKeyBar } from "@/components/ApiKeyBar";
 import { CallsTable } from "@/components/CallsTable";
 import { SpendChart } from "@/components/SpendChart";
@@ -17,7 +18,15 @@ export default function DashboardPage() {
             Flight recorder + quality grader for LLM applications.
           </p>
         </div>
-        <ApiKeyBar />
+        <div className="flex items-center gap-4">
+          <Link
+            href="/compare"
+            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            Compare versions
+          </Link>
+          <ApiKeyBar />
+        </div>
       </div>
 
       {!ready ? null : !apiKey ? (
