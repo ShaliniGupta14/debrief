@@ -9,9 +9,10 @@ RUN uv sync --no-dev --no-install-project
 
 COPY . .
 RUN uv sync --no-dev
+RUN chmod +x docker-entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
