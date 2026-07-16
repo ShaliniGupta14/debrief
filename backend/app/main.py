@@ -6,6 +6,8 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.db import engine
+from app.logging_config import configure_logging
+from app.middleware import RequestContextMiddleware
 from app.routers.calls import router as calls_router
 from app.routers.compare import router as compare_router
 from app.routers.evals import router as evals_router
@@ -13,8 +15,10 @@ from app.routers.ingest import router as ingest_router
 from app.routers.stats import router as stats_router
 
 settings = get_settings()
+configure_logging()
 
 app = FastAPI(title="Debrief API", version="0.1.0")
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
