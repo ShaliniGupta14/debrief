@@ -53,3 +53,31 @@ The spec says "biggest per-call score drops on similar prompts," but without a c
 ## 2026-07-15 — Regression = the whole CI is below zero, not just a lower mean
 
 `GET /v1/compare` uses a percentile bootstrap (2000 resamples) on the mean score delta between versions, and only flags a regression when the *entire* 95% CI of that delta sits below zero. A naive `mean_b < mean_a` check would flag noise as regression constantly on small samples. Tested this distinction directly, not just that the function returns a number: a fixed-seed case with a tiny true difference (0.75 vs 0.72) on 12 noisy synthetic samples asserts the CI straddles zero and `regressed` is `False` — the exact case a naive comparison gets wrong.
+
+## 2026-07-16 — Request-scoped logging via `contextvars`, not a threaded parameter
+
+Every log call needs the current request ID, but threading it through every function signature (or every log call) pollutes call sites that have nothing to do with logging. A `contextvars.ContextVar` set once in middleware and read by the log formatter gets the same result — request ID shows up on every line for free — without changing a single function signature elsewhere in the app.
+
+## 2026-07-16 — Prometheus labels use the route template, not the interpolated path
+
+`request.scope["route"].path` gives `/v1/calls/{call_id}`; the raw ASGI path gives `/v1/calls/53c3...`. Labeling metrics with the latter creates one new time series per UUID ever seen — unbounded cardinality that will eventually take down whatever's scraping `/metrics`. Middleware reads the matched route's template specifically so `http_requests_total` stays a small, fixed set of series regardless of traffic volume. A dedicated test asserts a raw UUID never appears in a label value, not just that the counter increments.
+
+## 2026-07-16 — Rate limiting is one atomic Lua script, not a Redis pipeline
+
+The obvious first design — `ZCARD` to check the count, then `ZADD` if under the limit — has a check-then-act race: two concurrent requests can both read "4 of 5 used" before either writes, and both get admitted. `EVAL`s a single script that does the prune/check/record atomically inside Redis, so there's no window between "check" and "act" for another request to land in. Proved this isn't just theoretical: a test fires 20 concurrent requests at a limit of 5 via `asyncio.gather` and asserts exactly 5 succeed — a sequential test loop wouldn't have caught the race at all.
+
+## 2026-07-16 — Demo mode blocks writes via a dependency, not a per-route `if` check
+
+`require_writable_project` wraps `get_current_project` and 403s if `project.is_demo`; write routes depend on it, read routes keep depending on `get_current_project` directly. FastAPI de-dupes dependencies within one request, so chaining `enforce_ingest_rate_limit -> require_writable_project -> get_current_project` costs one DB lookup, not three. The alternative — an `if project.is_demo: raise` at the top of every mutating handler — is the kind of check that's easy to forget on the next new write route; encoding it in the dependency graph means a route is either wired to the read-only guard or it isn't, visible at the signature.
+
+## 2026-07-16 — The demo project's API key is fixed, not randomly generated
+
+Every other seeded project gets a random key (`generate_api_key()`); the demo project gets a hardcoded constant instead, committed in `.env.example` with a comment explaining why it's safe to publish: mutations against it 403 unconditionally, regardless of who holds the key. A random key would break the "try the demo" button and the public README link every time `seed.py --reset` runs in production — the fixed key is what makes a public, stable, linkable demo possible at all.
+
+## 2026-07-17 — `railway up` needs `--path-as-root`, even run from inside the subdirectory
+
+Redeploying the `api`/`worker` services via `railway up backend --path-as-root` (see the 2026-07-15 entry on avoiding the GitHub App) worked before; running plain `railway up` again this time — including from *inside* `backend/`, expecting the CLI to use the CWD — instead uploaded the repo root and Railway's `railpack` builder tried to auto-detect a language, found no `start.sh` at the top level, and failed with zero useful hint that Docker was even in play. The CLI's upload root isn't "wherever you `cd`'d to" — it's the linked project's directory unless `--path-as-root <path>` is passed explicitly, every time, regardless of shell CWD. Cost two failed production deploys to rediscover; worth over-documenting.
+
+## 2026-07-17 — Docker Desktop's daemon never finished local first-launch setup in this environment
+
+`docker compose up` was never exercised end-to-end on this machine: Docker Desktop's backend process runs, but `~/.docker/run/docker.sock` never gets created, and its own logs show it endlessly re-checking CLI-plugin symlinks rather than starting the VM — consistent with being stuck behind a first-run GUI prompt (EULA/sign-in) that requires manual interaction the agent driving this build can't perform headlessly. Rather than claim untested success, this is the actual state: `docker compose config` validates the compose file's syntax and interpolation, and CI's `docker-build` job builds both `backend/Dockerfile` and `frontend/Dockerfile` from scratch on every push (green as of this writing) — so the images themselves are proven to build. What's *not* independently verified on this machine is the full `docker compose up` orchestration (service health-check ordering, inter-container networking). The Railway deploy of the same `backend/Dockerfile` + `docker-entrypoint.sh` succeeded in production and is live, which exercises the same image under real conditions, just not via `docker compose` specifically.
