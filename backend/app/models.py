@@ -40,6 +40,9 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     api_key_hash: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     api_key_prefix: Mapped[str] = mapped_column(String(12), nullable=False)
+    # Public read-only demo project: mutation endpoints check this and refuse
+    # (403) rather than let a public/no-signup key write data.
+    is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

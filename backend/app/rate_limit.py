@@ -15,7 +15,7 @@ from fastapi import Depends, HTTPException
 from redis.asyncio import Redis
 
 from app.config import get_settings
-from app.deps import get_current_project
+from app.demo_mode import require_writable_project
 from app.models import Project
 
 _RATE_LIMIT_SCRIPT = """
@@ -65,7 +65,7 @@ async def check_and_record(
 
 
 async def enforce_ingest_rate_limit(
-    project: Project = Depends(get_current_project),
+    project: Project = Depends(require_writable_project),
     redis: Redis = Depends(get_redis_client),
 ) -> Project:
     settings = get_settings()

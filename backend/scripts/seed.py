@@ -28,6 +28,11 @@ from app.security import generate_api_key, hash_api_key  # noqa: E402
 
 random.seed(42)  # reproducible across runs
 
+# Fixed (not randomly generated like the other projects' keys) because it's
+# public -- documented in the README as the no-signup demo entry point.
+# Re-running --reset must not silently break that documented key.
+DEMO_API_KEY = "sk_demo_5f3a9c7e2b1d4680a9e6c3f0b7d2e814"
+
 MODELS = [
     # (model, input_price_per_mtok, output_price_per_mtok, sampling weight)
     ("claude-sonnet-5", Decimal("3"), Decimal("15"), 0.4),
@@ -43,6 +48,7 @@ ERROR_MESSAGES = ["rate_limit_exceeded", "context_length_exceeded", "upstream_ti
 APPS = [
     {
         "name": "support-bot",
+        "is_demo": True,
         "pairs": [
             (
                 "What's your return policy?",
@@ -215,9 +221,13 @@ async def main(total_calls: int, do_reset: bool) -> None:
         seeded_keys: dict[str, str] = {}
         projects = []
         for app in APPS:
-            raw_key = generate_api_key()
+            is_demo = app.get("is_demo", False)
+            raw_key = DEMO_API_KEY if is_demo else generate_api_key()
             project = Project(
-                name=app["name"], api_key_hash=hash_api_key(raw_key), api_key_prefix=raw_key[:12]
+                name=app["name"],
+                api_key_hash=hash_api_key(raw_key),
+                api_key_prefix=raw_key[:12],
+                is_demo=is_demo,
             )
             db.add(project)
             await db.flush()

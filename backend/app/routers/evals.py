@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.anthropic_client import get_anthropic_client
 from app.config import get_settings
 from app.db import get_db
+from app.demo_mode import require_writable_project
 from app.deps import get_current_project
 from app.evals.calibration import compute_calibration_report
 from app.evals.judge import run_judge_eval
@@ -41,7 +42,7 @@ def _to_out(row: EvalDefinition) -> EvalDefinitionOut:
 @router.post("/v1/evals", status_code=201, response_model=EvalDefinitionOut)
 async def create_eval(
     payload: EvalDefinitionIn,
-    project: Project = Depends(get_current_project),
+    project: Project = Depends(require_writable_project),
     db: AsyncSession = Depends(get_db),
 ) -> EvalDefinitionOut:
     row = EvalDefinition(
@@ -80,7 +81,7 @@ async def list_evals(
 async def calibrate_eval(
     eval_id: uuid.UUID,
     payload: CalibrationRequest,
-    project: Project = Depends(get_current_project),
+    project: Project = Depends(require_writable_project),
     db: AsyncSession = Depends(get_db),
     anthropic_client: Any = Depends(get_anthropic_client),
 ) -> EvalDefinitionOut:
