@@ -7,10 +7,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.deps import get_current_project
 from app.metrics import llm_calls_ingested_total
 from app.models import LLMCall, Project
 from app.queue import get_arq_pool
+from app.rate_limit import enforce_ingest_rate_limit
 from app.schemas import CallIn, IngestResponse, IngestResultItem
 from app.services.pricing import compute_cost
 
@@ -63,7 +63,7 @@ async def _ingest_one(db: AsyncSession, project: Project, call_in: CallIn) -> tu
 @router.post("/v1/ingest", status_code=202, response_model=IngestResponse)
 async def ingest(
     payload: list[CallIn],
-    project: Project = Depends(get_current_project),
+    project: Project = Depends(enforce_ingest_rate_limit),
     db: AsyncSession = Depends(get_db),
     arq_pool: ArqRedis = Depends(get_arq_pool),
 ) -> IngestResponse:

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     judge_model: str = "claude-sonnet-5"
     judge_sample_rate: float = 0.2
 
+    rate_limit_requests: int = 100
+    rate_limit_window_seconds: int = 60
+
 
 @lru_cache
 def get_settings() -> Settings:
