@@ -17,6 +17,7 @@ dependencies = [
     "arq>=0.26",
     "anthropic>=0.40",
     "jsonschema>=4.23",
+    "prometheus-client>=0.21",
 ]
 
 [project.optional-dependencies]

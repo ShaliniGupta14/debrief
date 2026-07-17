@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.db import engine
 from app.logging_config import configure_logging
+from app.metrics import METRICS_CONTENT_TYPE, render_metrics
 from app.middleware import RequestContextMiddleware
 from app.routers.calls import router as calls_router
 from app.routers.compare import router as compare_router
@@ -61,3 +62,8 @@ async def healthz() -> JSONResponse:
             "build_sha": settings.git_sha,
         },
     )
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    return Response(render_metrics(), media_type=METRICS_CONTENT_TYPE)

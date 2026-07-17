@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.evals.judge import run_judge_eval
 from app.evals.rules import run_rule_eval
+from app.metrics import eval_jobs_processed_total
 from app.models import EvalDefinition, EvalResult, LLMCall
 
 settings = get_settings()
@@ -99,3 +100,4 @@ async def run_evals_for_call(ctx: dict[str, Any], call_id: str) -> None:
                     )
 
         await db.commit()
+        eval_jobs_processed_total.inc()

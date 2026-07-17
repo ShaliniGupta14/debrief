@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import get_current_project
+from app.metrics import llm_calls_ingested_total
 from app.models import LLMCall, Project
 from app.queue import get_arq_pool
 from app.schemas import CallIn, IngestResponse, IngestResultItem
@@ -77,6 +78,8 @@ async def ingest(
         results.append(
             IngestResultItem(id=row.id, client_call_id=row.client_call_id, duplicate=duplicate)
         )
+        if not duplicate:
+            llm_calls_ingested_total.labels(status=row.status).inc()
 
     await db.commit()
 
