@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useApiKey } from "@/lib/api-key-context";
 
+const DEMO_API_KEY = process.env.NEXT_PUBLIC_DEMO_API_KEY;
+
 export function ApiKeyBar() {
   const { apiKey, setApiKey, ready } = useApiKey();
   const [draft, setDraft] = useState("");
@@ -51,6 +53,15 @@ export function ApiKeyBar() {
       >
         Connect
       </button>
+      {DEMO_API_KEY && (
+        <button
+          type="button"
+          onClick={() => setApiKey(DEMO_API_KEY)}
+          className="text-sm text-[var(--text-secondary)] underline decoration-[var(--border)] underline-offset-4 hover:text-[var(--text-primary)]"
+        >
+          try the demo
+        </button>
+      )}
     </form>
   );
 }
